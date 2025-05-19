@@ -1,13 +1,15 @@
-import cv2
 import numpy as np
 import os
+os.environ["QT_QPA_PLATFORM"] = "xcb"
+import cv2
 import math
 import matplotlib.pyplot as plt
 import sys
 from sklearn.linear_model import LinearRegression
 
 cryst_area = list()
-user_choice = input("Please choose one of the options below \n'ia' for image / 'cl' for 'contour length' or 'ca' for 'contour area': ")
+user_choice = input("Please choose one of the options below \n"
+                    "ia- for image or,cl- for 'contour length' or ca- for 'contour area': ")
 
 class distance:
     # used to calculate distance between two black pixels to select black objects one at a time
@@ -102,7 +104,7 @@ class plot_data(x_data):
     def regression(self,save_path=None):
         model=LinearRegression()
         model.fit(self.x, self.y)
-        self.y_pred = model_predict(self.x)
+        self.y_pred = model.predict(self.x)
         plt.scatter(self.x, self.y, color='blue', label='Coordinates')
         plt.plot(self.x, self.y_pred, color='red', label='Linear Regression')
         plt.xlabel('Time')
@@ -120,13 +122,13 @@ class plot_data(x_data):
 
         plt.show()
 
-directory_path='/home/sourav/Desktop/Cryst_Image_proc/jpg_data'
+directory_path='/home/sourav/Desktop/crystal_growth_image_analysis/jpg_data'
 if user_choice=='ia':
-    save_path='/home/sourav/Desktop/Cryst_Image_proc/figs/area.png'
+    save_path='/home/sourav/Desktop/crystal_growth_image_analysis/figs/area.png'
 if user_choice=='cl':
-    save_path='/home/sourav/Desktop/Cryst_Image_proc/figs/cont_length.png'
+    save_path='/home/sourav/Desktop/crystal_growth_image_analysis/figs/cont_length.png'
 if user_choice=='ca':
-    save_path='/home/sourav/Desktop/Cryst_Image_proc/figs/cont_area.png'
+    save_path='/home/sourav/Desktop/crystal_growth_image_analysis/figs/cont_area.png'
 
 file_names = [f for f in os.listdir(directory_path) if\
         os.path.isfile(os.path.join(directory_path, f))] # get a list of file names
@@ -140,117 +142,142 @@ print(file_names)
 
 #sys.exit()
 
+key_pressed = None  # Global variable to track key
+
+def on_key(event):
+    global key_pressed
+    key_pressed = event.key
+    print(f"Key pressed: {key_pressed}")
+    plt.close()
+
+# main loop starts below
+
 kk = 0
-nn = 100
+nn = 10
 n = 1
 for file_name in file_names:
-    kk = kk+1
-    print(file_name)
+    kk = kk+1  
+    #print(file_name, kk)
     if kk > nn:
-        continue
+        break
     image_path = os.path.join(directory_path, file_name)
     image = cv2.imread(image_path)
-    print(f"file name:{file_name},kk")
+   # print(f"file name:{file_name},kk")
+
     # Check if the image was loaded successfully
     if image is None:
         print("Image not found.")
+        sys.exit()
     else:
         grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # Convert the image to grayscale
-        _, mask = cv2.threshold(grayscale_image, 52, 255, cv2.THRESH_BINARY) # Threshold to create a mask for dark areas
+        _, mask = cv2.threshold(grayscale_image, 50, 255, cv2.THRESH_BINARY) # Threshold to create a mask for dark areas
 
         black_pixels = np.where(mask == 0)
         black_coordinates = list(zip(black_pixels[0], black_pixels[1]))
         l = len(black_coordinates)
-        print('length l',l)
         i = 0
-        while i < l + 1:
+        part = 0
+        while i < l:
+            #print('iiii',i)
             y, x = black_coordinates[i]
+
+            part = part +1 # running number of cropped image of each picture
+
             cropped_image = mask[y - 100: y + 100, x - 100: x + 100]
 
-            if kk == n:
-                cv2.imshow("Cropped Dark Region", cropped_image)
-                #cv2.imshow("Original Binary Image", cropped_image)
-                key = cv2.waitKey(0)
+            # Display the image using matplotlib
+            plt.imshow(cropped_image, cmap='gray')
+            plt.title(f"{part}- Cropped Dark Region of picture {kk} \n"
+                      "Please check & close the image to continue")
+            plt.axis('off')  # Hide axes
+            plt.show()
+            
+            # Simulate key press using input
+            key = input("Press 'y' to accept this region: ").strip().lower()
+            
+            if key == 'y':
                 black_pixels1 = np.where(cropped_image == 0)
+                print(black_pixels1)
                 black_coordinates_cropped = list(zip(black_pixels1[1], black_pixels1[0]))
-                #sys.exit()
-                if key == ord('y'):
-                    length1=len(black_coordinates_cropped)
-                    print('length1',length1)
-                    if user_choice == 'ia':
-                        cryst_area.append(len(black_coordinates_cropped))
-                    if user_choice == 'cl':
-                        cplx=in_process(len(black_coordinates_cropped))
-                        contour_pointsx_list = cplx.cal_contour_points()
-                        swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
-                        cply=in_process(swapped_black_coordinates_cropped)
-                        contour_pointsy_list=cply.cal_contour_points()
-                        swapped_contour_pointsy_list = [(y, x) for x, y in counter_pointsy_list]
-                        contour_points_list=list(set(contour_pointsx_list+swapped_contour_pointsy_list))
-                        cryst_area.append(len(contour_points_list))
-                        image = np.zeros((400, 400, 1), dtype=np.units)
+                print('you said yes')
+                length1=len(black_coordinates_cropped)
+                print('length1',length1)
+                if user_choice == 'ia':
+                    cryst_area.append(len(black_coordinates_cropped))
+                if user_choice == 'cl':
+                    cplx=in_process(len(black_coordinates_cropped))
+                    contour_pointsx_list = cplx.cal_contour_points()
+                    swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
+                    cply=in_process(swapped_black_coordinates_cropped)
+                    contour_pointsy_list=cply.cal_contour_points()
+                    swapped_contour_pointsy_list = [(y, x) for x, y in counter_pointsy_list]
+                    contour_points_list=list(set(contour_pointsx_list+swapped_contour_pointsy_list))
+                    cryst_area.append(len(contour_points_list))
+                    image = np.zeros((400, 400, 1), dtype=np.units)
 
-                        for m, n in coutour_points_list: #draw circlrs at each pixel coordinate
-                            cv2_circle(image, (n, m), 2, (255, 255, 255), -1) # -1 fills the circles
+                    for m, n in coutour_points_list: #draw circlrs at each pixel coordinate
+                        cv2_circle(image, (n, m), 2, (255, 255, 255), -1) # -1 fills the circles
 
-                        cv2.inshow('Image with Points', image)
-                        cv2.waitKey(100)
-                        cv2.imwrite('contour image_1.tif',image)
-
-                    if user_choice == 'ca':
-                        cplx=in_process(black_coordinates_cropped)
-                        contour_pointsx_list = cplx.cal_contour_points()
-                        swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
-                        cply=in_process(swapped_black_coordinates_cropped)
-                        contour_pointsy_list = cply.cal_contour_points()
-                        swapped_contour_pointsy_list = [(y, x) for x, y in contour_pointsy_list]
-                        contour_pointsy_list=list(set(contour_pointsx_list+swapped_contour_pointsy_list))
-                        ca = in_process(contour_points_list)
-                        contour_area = ca.cal_contour_area()
-                        cryst_area.append(contour_area)
-                    break
-            else:
-                black_pixels = np.where(cropped_image == 0)
-                black_coordinates_cropped =list(zip(black_pixels[0], black_pixels[1]))
-                print('black_coordinates_cropped',black_coordinates_cropped)
-                length=len(black_coordinates_cropped)
-                print('length',length)
-                sys.exit()
-                if length<=length1+500 and length>=length1-500:
-                    black_coordinates_cropped = list(zip(black_pixels[0], black_pixels[1]))
-                    length=len(black_coordinates_cropped)
-                    if user_choice == 'ia':
-                        cryst_area.append(length)
-                    if user_choice == 'ci':
-                        cplx=in_process(black_coordinates_cropped)
-                        contour_pointsx_list=cplx.cal_contour_points()
-                        swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
-                        cply=in_process(swapped_black_coordinates_cropped)
-                        contour_pointsy_list=cply.cal_contour_points()
-                        swapped_contour_pointsy_list = [(y, x) for x, y in contour_pointsy_list]
-                        contour_points_list = list(set(contour_points_list+swapped_contour_pointsy_list))
-                        cryst_area.append(len(contour_points_list))
-                    if user_choice == 'ca':
-                        cplx=in_process(black_coordinates_cropped)
-                        contour_pointsx_list=cplx.cal_contour_points()
-                        swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
-                        cply=in_process(swapped_black_coordinates_cropped)
-                        contour_pointsy_list=cply.cal_contour_points()
-                        swapped_contour_pointsy_list = [(y, x) for x, y in contour_pointsy_list]
-                        contour_points_list = list(set(contour_points_list+swapped_contour_pointsy_list))
-                        ca=in_process(contour_points_list)
-                        contour_area=ca.cal_contour_area()
-                        cryst_area.append(contour_area)
-                    cv2.imshow('Cropped image', cropped_image)
+                    cv2.inshow('Image with Points', image)
                     cv2.waitKey(100)
-                    break
+                    cv2.imwrite('contour image_1.tif',image)
+
+                if user_choice == 'ca':
+                    cplx=in_process(black_coordinates_cropped)
+                    contour_pointsx_list = cplx.cal_contour_points()
+                    swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
+                    cply=in_process(swapped_black_coordinates_cropped)
+                    contour_pointsy_list = cply.cal_contour_points()
+                    swapped_contour_pointsy_list = [(y, x) for x, y in contour_pointsy_list]
+                    contour_pointsy_list=list(set(contour_pointsx_list+swapped_contour_pointsy_list))
+                    ca = in_process(contour_points_list)
+                    contour_area = ca.cal_contour_area()
+                    cryst_area.append(contour_area)
+            ##    break
+            ##else:
+            ##    break
+            #else:
+            #    black_pixels = np.where(cropped_image == 0)
+            #    black_coordinates_cropped =list(zip(black_pixels[0], black_pixels[1]))
+            #    print('black_coordinates_cropped',black_coordinates_cropped)
+            #    length=len(black_coordinates_cropped)
+            #    print('length',length)
+            #    sys.exit()
+            #    if length<=length1+500 and length>=length1-500:
+            #        black_coordinates_cropped = list(zip(black_pixels[0], black_pixels[1]))
+            #        length=len(black_coordinates_cropped)
+            #        if user_choice == 'ia':
+            #            cryst_area.append(length)
+            #        if user_choice == 'ci':
+            #            cplx=in_process(black_coordinates_cropped)
+            #            contour_pointsx_list=cplx.cal_contour_points()
+            #            swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
+            #            cply=in_process(swapped_black_coordinates_cropped)
+            #            contour_pointsy_list=cply.cal_contour_points()
+            #            swapped_contour_pointsy_list = [(y, x) for x, y in contour_pointsy_list]
+            #            contour_points_list = list(set(contour_points_list+swapped_contour_pointsy_list))
+            #            cryst_area.append(len(contour_points_list))
+            #        if user_choice == 'ca':
+            #            cplx=in_process(black_coordinates_cropped)
+            #            contour_pointsx_list=cplx.cal_contour_points()
+            #            swapped_black_coordinates_cropped = [(y, x) for x, y in black_coordinates_cropped]
+            #            cply=in_process(swapped_black_coordinates_cropped)
+            #            contour_pointsy_list=cply.cal_contour_points()
+            #            swapped_contour_pointsy_list = [(y, x) for x, y in contour_pointsy_list]
+            #            contour_points_list = list(set(contour_points_list+swapped_contour_pointsy_list))
+            #            ca=in_process(contour_points_list)
+            #            contour_area=ca.cal_contour_area()
+            #            cryst_area.append(contour_area)
+            #        cv2.imshow('Cropped image', cropped_image)
+            #        cv2.waitKey(100)
+            #        break
 
             j=1
-            while j < l - 100:
-                y1, x1 = black_coordinates[j - 100]
-                Dist = distance(x, y, x1, y1)
+            while j < l-101:
+                y1_check, x1_check = black_coordinates[j + 100]
+                Dist = distance(x, y, x1_check, y1_check)
                 D = Dist.cal_dist()
-                if D > 100:
+                if D < 5:
                     j=j+100
                     break
                 j=j+100
